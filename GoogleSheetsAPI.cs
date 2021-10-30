@@ -47,7 +47,7 @@ public class GoogleSheetsAPI : MonoBehaviour
 
     void Start()
     {
-        /* Uncoment if you will use Android
+        /* Uncomment if you will use Android
         string androidPath = "jar:file://" + Application.dataPath + "!/assets/";
         string tempPath =  Path.Combine(androidPath, certificateName);
         WWW reader = new WWW(tempPath);
