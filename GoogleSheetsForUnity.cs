@@ -1,6 +1,5 @@
 using Google.Apis.Auth.OAuth2;
 using Google.Apis.Sheets.v4;
-using System.Collections;
 using System.Collections.Generic;
 using System.Security.Cryptography.X509Certificates;
 using UnityEngine;
@@ -8,6 +7,7 @@ using Google.Apis.Services;
 using System;
 using Google.Apis.Sheets.v4.Data;
 using System.IO;
+using System.Threading.Tasks;
 
 public class GoogleSheetsForUnity : MonoBehaviour
 {
@@ -18,8 +18,8 @@ public class GoogleSheetsForUnity : MonoBehaviour
     [Header("Data from GoogleSheets")]
     [SerializeField] private string getDataInRange;
 
-    private string serviceAccountEmail = "googlesheetsunity@unityapi-329521.iam.gserviceaccount.com";
-    private string certificateName = "unityapi-329521-8ddbe692d4e0.p12";
+    private string serviceAccountEmail = "";
+    private string certificateName = "";
     private string certificatePath;
 
     private static SheetsService googleSheetsService;
@@ -47,18 +47,18 @@ public class GoogleSheetsForUnity : MonoBehaviour
 
     void Start()
     {
-        /* Uncoment if you will use Android
-        string androidPath = "jar:file://" + Application.dataPath + "!/assets/";
-        string tempPath =  Path.Combine(androidPath, certificateName);
+        //Remove comment to use on Android
+
+/*        string tempPath = Path.Combine(Application.streamingAssetsPath, certificateName);
         WWW reader = new WWW(tempPath);
         while (!reader.isDone) { }
-        var androidJarPath = Application.persistentDataPath + "/db";
-        File.WriteAllBytes(androidJarPath, reader.bytes);
-        */
+        certificatePath = Application.persistentDataPath + "/db";
+        File.WriteAllBytes(certificatePath, reader.bytes);*/
 
-        certificatePath = "/StreamingAssets/" + certificateName;
 
-        var certificate = new X509Certificate2(Application.dataPath + certificatePath, "notasecret", X509KeyStorageFlags.Exportable);
+        certificatePath = Application.dataPath + "/StreamingAssets/" + certificateName;  //Comment to use on Android
+
+        var certificate = new X509Certificate2(certificatePath, "notasecret", X509KeyStorageFlags.Exportable);
 
         ServiceAccountCredential credential = new ServiceAccountCredential(
             new ServiceAccountCredential.Initializer(serviceAccountEmail)
@@ -72,7 +72,7 @@ public class GoogleSheetsForUnity : MonoBehaviour
             ApplicationName = "GoogleSheets API for Unity"
         });
 
-        ReadData();
+        //Use async methods to increase Android performance.
     }
 
     public void ReadData()
@@ -82,7 +82,7 @@ public class GoogleSheetsForUnity : MonoBehaviour
         var request = googleSheetsService.Spreadsheets.Values.Get(spreadSheetID, range);
         var reponse = request.Execute();
         var values = reponse.Values;
-        if(values != null && values.Count > 0)
+        if (values != null && values.Count > 0)
         {
             foreach (var row in values)
             {
@@ -91,10 +91,37 @@ public class GoogleSheetsForUnity : MonoBehaviour
                 foreach (var value in row)
                 {
                     newRow.cellData.Add(value.ToString());
+                    Debug.Log(value.ToString());
                 }
 
             }
         }
+    }
+
+    public async void ReadDataAsyn()
+    {
+        var task = await Task.Run(() =>
+        {
+            string range = sheetID + "!" + getDataInRange;
+
+            var request = googleSheetsService.Spreadsheets.Values.Get(spreadSheetID, range);
+            var reponse = request.Execute();
+            var values = reponse.Values;
+            if (values != null && values.Count > 0)
+            {
+                foreach (var row in values)
+                {
+                    Row newRow = new Row();
+                    DataFromGoogleSheets.rows.Add(newRow);
+                    foreach (var value in row)
+                    {
+                        newRow.cellData.Add(value.ToString());
+                    }
+
+                }
+            }
+            return 0;
+        });
     }
 
     public void WriteData()
@@ -121,11 +148,51 @@ public class GoogleSheetsForUnity : MonoBehaviour
         var reponse = request.Execute();
     }
 
+    public async void WriteDataAsyn()
+    {
+        var task = await Task.Run(() =>
+        {
+            string range = sheetID + "!" + writeDataInRange;
+            var valueRange = new ValueRange();
+            var cellData = new List<object>();
+            var arrows = new List<IList<object>>();
+            foreach (var row in WriteDataFromUnity.rows)
+            {
+                cellData = new List<object>();
+                foreach (var data in row.cellData)
+                {
+                    cellData.Add(data);
+                }
+
+                arrows.Add(cellData);
+            }
+
+            valueRange.Values = arrows;
+
+            var request = googleSheetsService.Spreadsheets.Values.Append(valueRange, spreadSheetID, range);
+            request.ValueInputOption = SpreadsheetsResource.ValuesResource.AppendRequest.ValueInputOptionEnum.USERENTERED;
+            var reponse = request.Execute();
+            return 0;
+        });
+    }
+
     public void DeleteData()
     {
         var range = sheetID + "!" + deleteDataInRange;
 
         var deleteData = googleSheetsService.Spreadsheets.Values.Clear(new ClearValuesRequest(), spreadSheetID, range);
         deleteData.Execute();
+    }
+
+    public async void DeleteDataAsyn()
+    {
+        var task = await Task.Run(() =>
+        {
+            var range = sheetID + "!" + deleteDataInRange;
+
+            var deleteData = googleSheetsService.Spreadsheets.Values.Clear(new ClearValuesRequest(), spreadSheetID, range);
+            deleteData.Execute();
+            return 0;
+        });
     }
 }
