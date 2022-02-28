@@ -195,4 +195,59 @@ public class GoogleSheetsForUnity : MonoBehaviour
             return 0;
         });
     }
+    
+    
+    public void UpdateData()
+    {
+        string range = sheetID + "!" + writeDataInRange;
+        var valueRange = new ValueRange();
+        var cellData = new List<object>();
+        var arrows = new List<IList<object>>();
+        foreach (var row in WriteDataFromUnity.rows)
+        {
+            cellData = new List<object>();
+            foreach (var data in row.cellData)
+            {
+                cellData.Add(data);
+            }
+
+            arrows.Add(cellData);
+        }
+
+        valueRange.Values = arrows;
+
+        var updateRequest = googleSheetsService.Spreadsheets.Values.Update(valueRange, spreadSheetID, range);
+        updateRequest.ValueInputOption = SpreadsheetsResource.ValuesResource.UpdateRequest.ValueInputOptionEnum.USERENTERED;
+        var appendReponse = updateRequest.Execute();
+    }
+
+    public async void UpdateDataAsyn()
+    {
+        var task = await Task.Run(() =>
+        {
+            string range = sheetID + "!" + writeDataInRange;
+            var valueRange = new ValueRange();
+            var cellData = new List<object>();
+            var arrows = new List<IList<object>>();
+            foreach (var row in WriteDataFromUnity.rows)
+            {
+                cellData = new List<object>();
+                foreach (var data in row.cellData)
+                {
+                    cellData.Add(data);
+                }
+
+                arrows.Add(cellData);
+            }
+
+            valueRange.Values = arrows;
+
+            var updateRequest = googleSheetsService.Spreadsheets.Values.Update(valueRange, spreadSheetID, range);
+            updateRequest.ValueInputOption = SpreadsheetsResource.ValuesResource.UpdateRequest.ValueInputOptionEnum.USERENTERED;
+            var appendReponse = updateRequest.Execute();
+            return 0;
+        });
+    }
+
+
 }
